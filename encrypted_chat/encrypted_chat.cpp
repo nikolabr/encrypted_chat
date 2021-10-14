@@ -13,28 +13,26 @@ private:
     std::array<unsigned char, crypto_box_PUBLICKEYBYTES> pubkey; 
     std::array<unsigned char, crypto_box_SECRETKEYBYTES> seckey;
 
-    template <size_t N>
-    void print_key(std::array<unsigned char, N> array) {
-        
-    }
-
 public: 
     Keypair() {
         std::cout << "Generating keypair!" << "\n";
         crypto_box_keypair(pubkey.data(), seckey.data());
-    }
-    void print_keypair()
+    };
+    template <size_t N>
+    void print_key(std::array<unsigned char, N> array) {
+        for (const auto& byte : array)
+            std::cout << std::hex << (unsigned int)byte << " ";
+    };
+    void print_keypair() {
+        print_key(pubkey);
+    };
 };
-
-void print_key(unsigned char* ptr, unsigned int len) {
-    for (int i = 0; i < len; i++) {
-        printf("%X ", ptr[i]);
-    }
-}
 
 int main()
 {
     sodium_init();
+    Keypair keypair;
+    keypair.print_keypair();
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
