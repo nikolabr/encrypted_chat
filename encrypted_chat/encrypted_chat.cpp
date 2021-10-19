@@ -9,30 +9,72 @@
 #include <sodium.h>
 
 class Keypair {
-private: 
-    std::array<unsigned char, crypto_box_PUBLICKEYBYTES> pubkey; 
-    std::array<unsigned char, crypto_box_SECRETKEYBYTES> seckey;
-
 public: 
+    unsigned char pubkey[crypto_kx_PUBLICKEYBYTES];
+    unsigned char seckey[crypto_kx_SECRETKEYBYTES];
+
     Keypair() {
         std::cout << "Generating keypair!" << "\n";
-        crypto_box_keypair(pubkey.data(), seckey.data());
+        crypto_box_keypair(pubkey, seckey);
     };
-    template <size_t N>
-    void print_key(std::array<unsigned char, N> array) {
-        for (const auto& byte : array)
-            std::cout << std::hex << (unsigned int)byte << " ";
+
+    void print_key(unsigned char * array, unsigned int len) {
+        for (int i = 0; i < len; i++)
+            std::cout << std::hex << (unsigned int)array[i] << " ";
+        std::cout << std::endl;
     };
     void print_keypair() {
-        print_key(pubkey);
+        print_key(pubkey, crypto_kx_PUBLICKEYBYTES);
+        print_key(seckey, crypto_kx_SECRETKEYBYTES);
     };
 };
+
+class CryptographicUser {
+public:
+    Keypair keypair; 
+    unsigned char rx[crypto_kx_SESSIONKEYBYTES];
+    unsigned char tx[crypto_kx_SESSIONKEYBYTES];
+    bool secrets_shared; 
+
+    void encrypt_message(std::string message)
+};
+
+class User : public CryptographicUser {
+public: 
+    std::string name; 
+
+    User(std::string str) {
+        name = str; 
+    }
+};
+
+bool key_exchange(CryptographicUser client, CryptographicUser server) {
+    if ((crypto_kx_client_session_keys(client.rx, client.tx, client.keypair.pubkey, client.keypair.seckey, server.keypair.pubkey) != 0) ||
+        (crypto_kx_server_session_keys(server.rx, server.tx, server.keypair.pubkey, server.keypair.seckey, client.keypair.pubkey) != 0))
+        return false;
+    else
+        return true;
+}
 
 int main()
 {
     sodium_init();
-    Keypair keypair;
-    keypair.print_keypair();
+
+    User alice("Alice");
+    User bob("Bob");
+
+    alice.keypair.print_keypair();
+    bob.keypair.print_keypair();
+
+    std::cout << alice.name << std::endl; 
+    std::cout << bob.name << std::endl;
+
+    bool status = key_exchange(alice, bob);
+    if (status == true)
+        std::cout << "Successful key exchange!" << std::endl;
+    else 
+        std::cout << "Failed to exchange keys!" << std::endl;
+
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
