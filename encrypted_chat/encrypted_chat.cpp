@@ -8,6 +8,14 @@
 #include <array>
 #include <sodium.h>
 
+#define MESSAGE_LEN 200
+#define CIPHER_LEN ( crypto_secretbox_MACBYTES + MESSAGE_LEN ) 
+
+typedef struct {
+    unsigned char nonce[crypto_secretbox_NONCEBYTES];
+    unsigned char data[CIPHER_LEN];
+} TransportCipher;
+
 class Keypair {
 public: 
     unsigned char pubkey[crypto_kx_PUBLICKEYBYTES];
@@ -19,7 +27,7 @@ public:
     };
 
     void print_key(unsigned char * array, unsigned int len) {
-        for (int i = 0; i < len; i++)
+        for (unsigned int i = 0; i < len; i++)
             std::cout << std::hex << (unsigned int)array[i] << " ";
         std::cout << std::endl;
     };
@@ -34,9 +42,23 @@ public:
     Keypair keypair; 
     unsigned char rx[crypto_kx_SESSIONKEYBYTES];
     unsigned char tx[crypto_kx_SESSIONKEYBYTES];
-    bool secrets_shared; 
+    bool secrets_shared = false; 
 
-    void encrypt_message(std::string message)
+    TransportCipher encrypt_message(std::string message) {
+        TransportCipher cipher; 
+        randombytes_buf(cipher.nonce, crypto_secretbox_NONCEBYTES);
+
+        if (message.length() < MESSAGE_LEN)
+            crypto_secretbox_easy(cipher.data, (const unsigned char*)message.c_str(), MESSAGE_LEN, cipher.nonce, tx);
+        return cipher;
+    }
+
+    unsigned char * decrypt_message(TransportCipher cipher) {
+        unsigned char decrypted[MESSAGE_LEN];
+        if (crypto_secretbox_open_easy(decrypted, cipher.data, CIPHER_LEN, cipher.nonce, rx) == 0) {
+            return decrypted; 
+        }
+    }
 };
 
 class User : public CryptographicUser {
@@ -66,15 +88,14 @@ int main()
     alice.keypair.print_keypair();
     bob.keypair.print_keypair();
 
-    std::cout << alice.name << std::endl; 
-    std::cout << bob.name << std::endl;
-
     bool status = key_exchange(alice, bob);
     if (status == true)
         std::cout << "Successful key exchange!" << std::endl;
     else 
         std::cout << "Failed to exchange keys!" << std::endl;
 
+    TransportCipher cipher = alice.encrypt_message("Test!");
+    std::cout << bob.decrypt_message(cipher) << std::endl;
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
