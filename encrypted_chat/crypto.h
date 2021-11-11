@@ -5,7 +5,6 @@
 #include <iterator>
 #include <algorithm>
 
-
 #define MESSAGE_LEN 200
 #define CIPHER_LEN ( crypto_secretbox_MACBYTES + MESSAGE_LEN ) 
 

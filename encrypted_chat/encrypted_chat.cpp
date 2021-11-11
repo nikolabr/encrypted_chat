@@ -10,6 +10,31 @@ public:
     User(std::string str) : name(str) {}
 };
 
+class EncryptedChatApp : public wxApp {
+public: 
+    EncryptedChatApp();
+    virtual ~EncryptedChatApp();
+    virtual bool OnInit() override;
+};
+
+EncryptedChatApp::EncryptedChatApp()
+{
+}
+
+EncryptedChatApp::~EncryptedChatApp()
+{
+}
+
+bool EncryptedChatApp::OnInit()
+{
+    wxFrame* mainFrame = new wxFrame(nullptr, wxID_ANY, L"Encrypted Chat");
+    mainFrame->Show(true);
+    return true;
+}
+
+wxIMPLEMENT_APP(EncryptedChatApp);
+wxIMPLEMENT_WXWIN_MAIN_CONSOLE;
+
 int main()
 {
     sodium_init();
