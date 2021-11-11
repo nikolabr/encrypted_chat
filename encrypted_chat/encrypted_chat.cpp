@@ -1,82 +1,14 @@
 // encrypted_chat.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
-
-#include <iostream>
-#include <string>
-#include <iterator>
-#include <algorithm>
-#include <array>
-#include <sodium.h>
-
-#define MESSAGE_LEN 200
-#define CIPHER_LEN ( crypto_secretbox_MACBYTES + MESSAGE_LEN ) 
-
-typedef struct {
-    unsigned char nonce[crypto_secretbox_NONCEBYTES];
-    unsigned char data[CIPHER_LEN];
-} TransportCipher;
-
-class Keypair {
-public: 
-    unsigned char pubkey[crypto_kx_PUBLICKEYBYTES];
-    unsigned char seckey[crypto_kx_SECRETKEYBYTES];
-
-    Keypair() {
-        std::cout << "Generating keypair!" << "\n";
-        crypto_box_keypair(pubkey, seckey);
-    };
-
-    void print_key(unsigned char * array, unsigned int len) {
-        for (unsigned int i = 0; i < len; i++)
-            std::cout << std::hex << (unsigned int)array[i] << " ";
-        std::cout << std::endl;
-    };
-    void print_keypair() {
-        print_key(pubkey, crypto_kx_PUBLICKEYBYTES);
-        print_key(seckey, crypto_kx_SECRETKEYBYTES);
-    };
-};
-
-class CryptographicUser {
-public:
-    Keypair keypair; 
-    unsigned char rx[crypto_kx_SESSIONKEYBYTES];
-    unsigned char tx[crypto_kx_SESSIONKEYBYTES];
-    bool secrets_shared = false; 
-
-    TransportCipher encrypt_message(std::string message) {
-        TransportCipher cipher; 
-        randombytes_buf(cipher.nonce, crypto_secretbox_NONCEBYTES);
-
-        if (message.length() < MESSAGE_LEN)
-            crypto_secretbox_easy(cipher.data, (const unsigned char*)message.c_str(), MESSAGE_LEN, cipher.nonce, tx);
-        return cipher;
-    }
-
-    unsigned char * decrypt_message(TransportCipher cipher) {
-        unsigned char decrypted[MESSAGE_LEN];
-        if (crypto_secretbox_open_easy(decrypted, cipher.data, CIPHER_LEN, cipher.nonce, rx) == 0) {
-            return decrypted; 
-        }
-    }
-};
+#include "crypto.h"
+#include <wx/wx.h>
 
 class User : public CryptographicUser {
 public: 
     std::string name; 
 
-    User(std::string str) {
-        name = str; 
-    }
+    User(std::string str) : name(str) {}
 };
-
-bool key_exchange(CryptographicUser client, CryptographicUser server) {
-    if ((crypto_kx_client_session_keys(client.rx, client.tx, client.keypair.pubkey, client.keypair.seckey, server.keypair.pubkey) != 0) ||
-        (crypto_kx_server_session_keys(server.rx, server.tx, server.keypair.pubkey, server.keypair.seckey, client.keypair.pubkey) != 0))
-        return false;
-    else
-        return true;
-}
 
 int main()
 {
