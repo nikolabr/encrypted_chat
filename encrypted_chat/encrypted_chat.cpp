@@ -25,18 +25,17 @@ EncryptedChatApp::~EncryptedChatApp()
 {
 }
 
-bool EncryptedChatApp::OnInit()
+class AppFrame : public wxFrame
 {
-    wxFrame* mainFrame = new wxFrame(nullptr, wxID_ANY, L"Encrypted Chat");
-    mainFrame->Show(true);
-    return true;
-}
+public:
+    AppFrame();
 
-wxIMPLEMENT_APP(EncryptedChatApp);
-wxIMPLEMENT_WXWIN_MAIN_CONSOLE;
+private:
+    void OnExit(wxCommandEvent& event);
+};
 
-int main()
-{
+
+AppFrame::AppFrame() : wxFrame(nullptr, wxID_ANY, L"Encrypted Chat") {
     sodium_init();
 
     User alice("Alice");
@@ -46,14 +45,27 @@ int main()
     bob.keypair.print_keypair();
 
     bool status = key_exchange(alice, bob);
+    CreateStatusBar();
     if (status == true)
-        std::cout << "Successful key exchange!" << std::endl;
-    else 
-        std::cout << "Failed to exchange keys!" << std::endl;
-
-    TransportCipher cipher = alice.encrypt_message("Test!");
-    std::cout << bob.decrypt_message(cipher) << std::endl;
+        SetStatusText("Successful key exchange!");
+    else
+        SetStatusText("Failed to exchange keys!");
 }
+
+void AppFrame::OnExit(wxCommandEvent& event)
+{
+    Close(true);
+}
+
+bool EncryptedChatApp::OnInit()
+{
+    AppFrame* mainFrame = new AppFrame();
+    mainFrame->Show(true);
+    return true;
+}
+
+wxIMPLEMENT_APP(EncryptedChatApp);
+wxIMPLEMENT_WXWIN_MAIN_CONSOLE;
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
 // Debug program: F5 or Debug > Start Debugging menu

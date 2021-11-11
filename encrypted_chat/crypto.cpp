@@ -15,7 +15,6 @@ void Keypair::print_keypair() {
     print_key(seckey, crypto_kx_SECRETKEYBYTES);
 };
 
-
 TransportCipher CryptographicUser::encrypt_message(std::string message) {
     TransportCipher cipher;
     randombytes_buf(cipher.nonce, crypto_secretbox_NONCEBYTES);
