@@ -1,8 +1,7 @@
 #include "crypto.h"
 
 Keypair::Keypair() {
-    std::cout << "Generating keypair!" << "\n";
-    crypto_box_keypair(pubkey, seckey);
+    success = crypto_box_keypair(pubkey, seckey);
 };
 
 void Keypair::print_key(unsigned char* array, unsigned int len) {

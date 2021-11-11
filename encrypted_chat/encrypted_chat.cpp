@@ -38,18 +38,14 @@ private:
 AppFrame::AppFrame() : wxFrame(nullptr, wxID_ANY, L"Encrypted Chat") {
     sodium_init();
 
-    User alice("Alice");
-    User bob("Bob");
+    User me("Me");
 
-    alice.keypair.print_keypair();
-    bob.keypair.print_keypair();
-
-    bool status = key_exchange(alice, bob);
+    int status = me.keypair.success;
     CreateStatusBar();
-    if (status == true)
-        SetStatusText("Successful key exchange!");
+    if (status == 0)
+        SetStatusText("Successfully generated keypair!");
     else
-        SetStatusText("Failed to exchange keys!");
+        SetStatusText("Failed to generate keypair!");
 }
 
 void AppFrame::OnExit(wxCommandEvent& event)
