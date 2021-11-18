@@ -19,7 +19,7 @@ public:
     unsigned char seckey[crypto_kx_SECRETKEYBYTES];
 
     Keypair();
-    int success = false;
+    int success = -1;
 
     void print_key(unsigned char* array, unsigned int len);
     void print_keypair();
