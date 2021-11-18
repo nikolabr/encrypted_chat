@@ -28,24 +28,38 @@ class AppFrame : public wxFrame
 {
 public:
     AppFrame(int status);
+    wxTextCtrl* text_output;
+    wxTextCtrl* text_input;
 
 private:
     void OnExit(wxCommandEvent& event);
     void UsernamePrompt(wxCommandEvent& event);
+    void OnSend(wxCommandEvent& event);
 };
 
+enum {
+    ID_Output = 1,
+    ID_Input = 2
+};
+
+void AppFrame::OnSend(wxCommandEvent& event) {
+    std::string input = text_input->GetValue().utf8_string();
+    User user = 
+    text_output->WriteText(wxNow() << ' ' << "Encrypted" << ": " << input << '\n');
+    text_input->Clear();
+}
+
 AppFrame::AppFrame(int status) : wxFrame(nullptr, wxID_ANY, L"Encrypted Chat") {
-    sodium_init();
 
     wxBoxSizer* vbox = new wxBoxSizer(wxVERTICAL);
     wxPanel* panel = new wxPanel(this, wxID_ANY);
 
-    wxTextCtrl* text_output = new wxTextCtrl(panel, wxID_ANY, wxT(""),
-        wxDefaultPosition, wxDefaultSize, wxTE_READONLY | wxTE_MULTILINE);
+    text_output = new wxTextCtrl(panel, ID_Output, wxT(""),
+        wxDefaultPosition, wxDefaultSize, wxTE_READONLY | wxTE_MULTILINE | wxTE_WORDWRAP);
     vbox->Add(text_output, 4, wxEXPAND | wxTOP);
 
-    wxTextCtrl *text_input = new wxTextCtrl(panel, wxID_ANY, wxT(""),
-        wxDefaultPosition, wxDefaultSize, 0);
+    text_input = new wxTextCtrl(panel, ID_Input, wxT(""),
+        wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
     vbox->Add(text_input, 1, wxEXPAND | wxBOTTOM);
 
     panel->SetSizer(vbox);
@@ -56,6 +70,7 @@ AppFrame::AppFrame(int status) : wxFrame(nullptr, wxID_ANY, L"Encrypted Chat") {
     else
         SetStatusText("Failed to generate keypair!");
 
+    Bind(wxEVT_TEXT_ENTER, &AppFrame::OnSend, this, ID_Input);
     Center();
 }
 
@@ -66,6 +81,7 @@ void AppFrame::OnExit(wxCommandEvent& event)
 
 bool EncryptedChatApp::OnInit()
 {
+    sodium_init();
     user.name = "me";
     AppFrame* mainFrame = new AppFrame(user.keypair.success);
     mainFrame->Show(true);

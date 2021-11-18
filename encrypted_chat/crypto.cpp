@@ -9,6 +9,7 @@ void Keypair::print_key(unsigned char* array, unsigned int len) {
         std::cout << std::hex << (unsigned int)array[i] << " ";
     std::cout << std::endl;
 };
+
 void Keypair::print_keypair() {
     print_key(pubkey, crypto_kx_PUBLICKEYBYTES);
     print_key(seckey, crypto_kx_SECRETKEYBYTES);
