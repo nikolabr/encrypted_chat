@@ -6,12 +6,11 @@
 class User : public CryptographicUser {
 public: 
     std::string name; 
-
-    User(std::string str) : name(str) {}
 };
 
 class EncryptedChatApp : public wxApp {
 public: 
+    User user;
     EncryptedChatApp();
     virtual ~EncryptedChatApp();
     virtual bool OnInit() override;
@@ -28,24 +27,36 @@ EncryptedChatApp::~EncryptedChatApp()
 class AppFrame : public wxFrame
 {
 public:
-    AppFrame();
+    AppFrame(int status);
 
 private:
     void OnExit(wxCommandEvent& event);
+    void UsernamePrompt(wxCommandEvent& event);
 };
 
-
-AppFrame::AppFrame() : wxFrame(nullptr, wxID_ANY, L"Encrypted Chat") {
+AppFrame::AppFrame(int status) : wxFrame(nullptr, wxID_ANY, L"Encrypted Chat") {
     sodium_init();
 
-    User me("Me");
+    wxBoxSizer* vbox = new wxBoxSizer(wxVERTICAL);
+    wxPanel* panel = new wxPanel(this, wxID_ANY);
 
-    int status = me.keypair.success;
+    wxTextCtrl* text_output = new wxTextCtrl(panel, wxID_ANY, wxT(""),
+        wxDefaultPosition, wxDefaultSize, wxTE_READONLY | wxTE_MULTILINE);
+    vbox->Add(text_output, 4, wxEXPAND | wxTOP);
+
+    wxTextCtrl *text_input = new wxTextCtrl(panel, wxID_ANY, wxT(""),
+        wxDefaultPosition, wxDefaultSize, 0);
+    vbox->Add(text_input, 1, wxEXPAND | wxBOTTOM);
+
+    panel->SetSizer(vbox);
+
     CreateStatusBar();
     if (status == 0)
         SetStatusText("Successfully generated keypair!");
     else
         SetStatusText("Failed to generate keypair!");
+
+    Center();
 }
 
 void AppFrame::OnExit(wxCommandEvent& event)
@@ -55,7 +66,8 @@ void AppFrame::OnExit(wxCommandEvent& event)
 
 bool EncryptedChatApp::OnInit()
 {
-    AppFrame* mainFrame = new AppFrame();
+    user.name = "me";
+    AppFrame* mainFrame = new AppFrame(user.keypair.success);
     mainFrame->Show(true);
     return true;
 }
