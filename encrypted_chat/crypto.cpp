@@ -24,10 +24,11 @@ TransportCipher CryptographicUser::encrypt_message(std::string message) {
     return cipher;
 }
 
-unsigned char* CryptographicUser::decrypt_message(TransportCipher cipher) {
+void CryptographicUser::decrypt_message(TransportCipher &cipher) {
     unsigned char decrypted[MESSAGE_LEN];
     if (crypto_secretbox_open_easy(decrypted, cipher.data, CIPHER_LEN, cipher.nonce, rx) == 0) {
-        return decrypted;
+        std::memset(cipher.data, 0, CIPHER_LEN);
+        std::memcpy(cipher.data, decrypted, MESSAGE_LEN);
     }
 }
 

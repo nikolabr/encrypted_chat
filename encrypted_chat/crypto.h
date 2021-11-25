@@ -34,7 +34,7 @@ public:
 
     TransportCipher encrypt_message(std::string message);
 
-    unsigned char* decrypt_message(TransportCipher cipher);
+    void decrypt_message(TransportCipher &cipher);
 };
 
 bool key_exchange(CryptographicUser client, CryptographicUser server);
