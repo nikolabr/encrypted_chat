@@ -10,7 +10,6 @@ public:
 
 class EncryptedChatApp : public wxApp {
 public: 
-    User user;
     EncryptedChatApp();
     virtual ~EncryptedChatApp();
     virtual bool OnInit() override;
@@ -44,8 +43,9 @@ enum {
 
 void AppFrame::OnSend(wxCommandEvent& event) {
     std::string input = text_input->GetValue().utf8_string();
-    User user = 
-    text_output->WriteText(wxNow() << ' ' << "Encrypted" << ": " << input << '\n');
+    text_output->WriteText(wxNow() << ' ' << "User 1" << ": " << input << '\n');
+    /*TransportCipher cipher = user1.encrypt_message(input);
+    text_output->WriteText(wxNow() << ' ' << "User 2" << ": " << user2.decrypt_message(cipher) << '\n');*/
     text_input->Clear();
 }
 
@@ -82,14 +82,17 @@ void AppFrame::OnExit(wxCommandEvent& event)
 bool EncryptedChatApp::OnInit()
 {
     sodium_init();
-    user.name = "me";
-    AppFrame* mainFrame = new AppFrame(user.keypair.success);
+
+    User user1;
+    User user2;
+    user1.name = "me";
+    user2.name = "you";
+    AppFrame* mainFrame = new AppFrame(key_exchange(user1, user2));
     mainFrame->Show(true);
     return true;
 }
 
 wxIMPLEMENT_APP(EncryptedChatApp);
-wxIMPLEMENT_WXWIN_MAIN_CONSOLE;
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
 // Debug program: F5 or Debug > Start Debugging menu
