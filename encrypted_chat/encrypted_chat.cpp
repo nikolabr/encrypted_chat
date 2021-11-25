@@ -8,6 +8,9 @@ public:
     std::string name; 
 };
 
+User user1;
+User user2;
+
 class EncryptedChatApp : public wxApp {
 public: 
     EncryptedChatApp();
@@ -26,7 +29,7 @@ EncryptedChatApp::~EncryptedChatApp()
 class AppFrame : public wxFrame
 {
 public:
-    AppFrame(int status);
+    AppFrame(bool status);
     wxTextCtrl* text_output;
     wxTextCtrl* text_input;
 
@@ -44,12 +47,13 @@ enum {
 void AppFrame::OnSend(wxCommandEvent& event) {
     std::string input = text_input->GetValue().utf8_string();
     text_output->WriteText(wxNow() << ' ' << "User 1" << ": " << input << '\n');
-    /*TransportCipher cipher = user1.encrypt_message(input);
-    text_output->WriteText(wxNow() << ' ' << "User 2" << ": " << user2.decrypt_message(cipher) << '\n');*/
+    TransportCipher cipher = user1.encrypt_message(input);
+    user2.decrypt_message(cipher);
+    text_output->WriteText(wxNow() << ' ' << "User 2" << ": " << cipher.data << '\n');
     text_input->Clear();
 }
 
-AppFrame::AppFrame(int status) : wxFrame(nullptr, wxID_ANY, L"Encrypted Chat") {
+AppFrame::AppFrame(bool status) : wxFrame(nullptr, wxID_ANY, L"Encrypted Chat") {
 
     wxBoxSizer* vbox = new wxBoxSizer(wxVERTICAL);
     wxPanel* panel = new wxPanel(this, wxID_ANY);
@@ -65,7 +69,7 @@ AppFrame::AppFrame(int status) : wxFrame(nullptr, wxID_ANY, L"Encrypted Chat") {
     panel->SetSizer(vbox);
 
     CreateStatusBar();
-    if (status == 0)
+    if (status)
         SetStatusText("Successfully generated keypair!");
     else
         SetStatusText("Failed to generate keypair!");
@@ -82,9 +86,8 @@ void AppFrame::OnExit(wxCommandEvent& event)
 bool EncryptedChatApp::OnInit()
 {
     sodium_init();
-
-    User user1;
-    User user2;
+    user1 = User();
+    user2 = User();
     user1.name = "me";
     user2.name = "you";
     AppFrame* mainFrame = new AppFrame(key_exchange(user1, user2));
