@@ -1,4 +1,4 @@
-#include "crypto.h"
+#include "crypto.hpp"
 
 Keypair::Keypair() {
     success = crypto_box_keypair(pubkey, seckey);

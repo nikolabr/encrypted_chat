@@ -1,6 +1,7 @@
 // encrypted_chat.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
-#include "crypto.h"
+#include "crypto.hpp"
+#include "net.hpp"
 #include <wx/wx.h>
 
 class User : public CryptographicUser {
@@ -14,6 +15,7 @@ User user2;
 class EncryptedChatApp : public wxApp {
 public: 
     EncryptedChatApp();
+    WinsockInterface net_interface;
     virtual ~EncryptedChatApp();
     virtual bool OnInit() override;
 };
@@ -90,6 +92,12 @@ bool EncryptedChatApp::OnInit()
     user2 = User();
     user1.name = "me";
     user2.name = "you";
+
+    net_interface.Receive();
+    if (net_interface.iResult != 0) {
+        std::cout << "Failed net init" << std::endl;
+    }
+
     AppFrame* mainFrame = new AppFrame(key_exchange(user1, user2));
     mainFrame->Show(true);
     return true;
