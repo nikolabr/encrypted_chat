@@ -10,7 +10,6 @@ public:
     std::string name; 
 };
 
-
 User user1;
 User user2;
 
@@ -36,7 +35,8 @@ public:
     AppFrame(bool status, wxString hostname);
     wxTextCtrl* text_output;
     wxTextCtrl* text_input;
-    wxSocketServer* sock;
+    wxSocketServer* server_sock;
+    wxSocketClient* client_sock;
     wxSocketBase* peer_sock;
     wxDECLARE_EVENT_TABLE();
 
@@ -67,13 +67,18 @@ void AppFrame::OnSend(wxCommandEvent& event) {
             peer_sock->Write((input + '\n').c_str(), input.length());
         }
     }
+    else if (client_sock) {
+        if (client_sock->IsConnected()) {
+            client_sock->Write(input.data(), 16);
+        }
+    }
     text_input->Clear();
 }
 
 void AppFrame::OnServerEvent(wxSocketEvent& event) {
     switch (event.GetSocketEvent()) {
     case wxSOCKET_CONNECTION:
-        peer_sock = sock->Accept(false);
+        peer_sock = server_sock->Accept(false);
         if (peer_sock) {
             wxIPV4address addr;
             if (peer_sock->GetPeer(addr)) {
@@ -98,7 +103,7 @@ void AppFrame::OnSocketEvent(wxSocketEvent& event) {
         sockBase->SetFlags(wxSOCKET_WAITALL);
 
         char buf[16];
-        lenRd = sockBase->Read(buf, 5).LastCount();
+        lenRd = sockBase->Read(buf, 16).LastCount();
 
         if (lenRd) {
             text_output->WriteText(wxNow() << ' ' << "User 2: " << buf);
@@ -136,16 +141,30 @@ AppFrame::AppFrame(bool status, wxString hostname) : wxFrame(nullptr, wxID_ANY, 
     wxIPV4address addr;
 
     addr.AnyAddress();
-    if (hostname != "localhost")
+    if (hostname != "localhost") {
+        addr.Service(28015);
+
         addr.Hostname(hostname);
 
-    addr.Service(28015);
-    
-    sock = new wxSocketServer(addr);
+        client_sock = new wxSocketClient();
 
-    sock->SetEventHandler(*this, ID_Server);
-    sock->SetNotify(wxSOCKET_CONNECTION_FLAG);
-    sock->Notify(true);
+        client_sock->SetEventHandler(*this, ID_Socket);
+        client_sock->SetNotify(wxSOCKET_CONNECTION_FLAG |
+            wxSOCKET_INPUT_FLAG |
+            wxSOCKET_LOST_FLAG);
+        client_sock->Notify(true);
+
+        client_sock->Connect(addr, false);
+    }
+    else {
+        addr.Service(28015);
+
+        server_sock = new wxSocketServer(addr);
+
+        server_sock->SetEventHandler(*this, ID_Server);
+        server_sock->SetNotify(wxSOCKET_CONNECTION_FLAG);
+        server_sock->Notify(true);
+    }
 
     Bind(wxEVT_TEXT_ENTER, &AppFrame::OnSend, this, ID_Input);
     Center();
@@ -165,7 +184,7 @@ bool EncryptedChatApp::OnInit()
     user2.name = "you";
 
     wxString addr;
-    if (wxApp::argc > 1) {
+    if (wxApp::argc >= 1) {
         addr = wxApp::argv[0];
     }
     else {
