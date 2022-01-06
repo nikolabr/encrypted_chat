@@ -7,18 +7,22 @@
 
 class User : public CryptographicUser {
 public: 
-    std::string name; 
+    char name[16];
 };
 
-User user1;
-User user2;
+User me;
+
+struct {
+    bool received_data = false;
+    unsigned char pubkey[crypto_kx_PUBLICKEYBYTES];
+    char name[16];
+} Peer;
 
 class EncryptedChatApp : public wxApp {
 public: 
     EncryptedChatApp();
     virtual ~EncryptedChatApp();
     virtual bool OnInit() override;
-
 };
 
 EncryptedChatApp::EncryptedChatApp()
@@ -32,9 +36,11 @@ EncryptedChatApp::~EncryptedChatApp()
 class AppFrame : public wxFrame
 {
 public:
-    AppFrame(bool status, wxString hostname);
+    AppFrame(wxString hostname);
+
     wxTextCtrl* text_output;
     wxTextCtrl* text_input;
+
     wxSocketServer* server_sock;
     wxSocketClient* client_sock;
     wxSocketBase* peer_sock;
@@ -56,20 +62,37 @@ enum {
     ID_Server = 4,
 };
 
+enum {
+    ENCRYPTED_CHAT_USER_DATA = 0xA0,
+    ENCRYPTED_CHAT_MESSAGE = 0xA1
+};
+
 void AppFrame::OnSend(wxCommandEvent& event) {
     std::string input = text_input->GetValue().utf8_string();
-    text_output->WriteText(wxNow() << ' ' << "User 1" << ": " << input << '\n');
-    /*TransportCipher cipher = user1.encrypt_message(input);
-    user2.decrypt_message(cipher);
-    text_output->WriteText(wxNow() << ' ' << "User 2" << ": " << cipher.data << '\n');*/
+    text_output->WriteText(wxNow() << ' ' << me.name << ": " << input << '\n');
+
+    TransportCipher cipher = me.encrypt_message(input);
+
     if (peer_sock) {
         if (peer_sock->IsConnected()) {
-            peer_sock->Write((input + '\n').c_str(), input.length());
+            unsigned char buf[2];
+
+            buf[0] = ENCRYPTED_CHAT_MESSAGE;
+            buf[1] = CIPHER_LEN;
+
+            peer_sock->Write(buf, 2);
+            peer_sock->Write(&cipher, CIPHER_LEN);
         }
     }
     else if (client_sock) {
         if (client_sock->IsConnected()) {
-            client_sock->Write(input.data(), 16);
+            unsigned char buf[2];
+
+            buf[0] = ENCRYPTED_CHAT_MESSAGE;
+            buf[1] = CIPHER_LEN;
+
+            client_sock->Write(buf, 2);
+            client_sock->Write(&cipher, CIPHER_LEN);
         }
     }
     text_input->Clear();
@@ -80,11 +103,25 @@ void AppFrame::OnServerEvent(wxSocketEvent& event) {
     case wxSOCKET_CONNECTION:
         peer_sock = server_sock->Accept(false);
         if (peer_sock) {
+
             wxIPV4address addr;
+
             if (peer_sock->GetPeer(addr)) {
                 text_output->WriteText(wxNow() << " New connection from " << addr.IPAddress() << '\n');
             }
+
+            unsigned char buf[2 + crypto_kx_PUBLICKEYBYTES + 16];
+
+            buf[0] = ENCRYPTED_CHAT_USER_DATA;
+            buf[1] = crypto_kx_PUBLICKEYBYTES + 16;
+
+            memcpy(buf + 2, me.keypair.pubkey, crypto_kx_PUBLICKEYBYTES);
+            memcpy(buf + crypto_kx_PUBLICKEYBYTES, me.name, 16);
+
+            peer_sock->Write(buf, sizeof(buf));
+
         }
+
         peer_sock->SetEventHandler(*this, ID_Socket);
         peer_sock->SetNotify(wxSOCKET_INPUT_FLAG | wxSOCKET_LOST_FLAG);
         peer_sock->Notify(true);
@@ -102,11 +139,52 @@ void AppFrame::OnSocketEvent(wxSocketEvent& event) {
 
         sockBase->SetFlags(wxSOCKET_WAITALL);
 
-        char buf[16];
-        lenRd = sockBase->Read(buf, 16).LastCount();
+        unsigned char rx_buf[256];
+        lenRd = sockBase->Read(rx_buf, 2).LastCount();
 
         if (lenRd) {
-            text_output->WriteText(wxNow() << ' ' << "User 2: " << buf);
+            switch (rx_buf[0]) {
+            case ENCRYPTED_CHAT_USER_DATA:  
+                if (!Peer.received_data) {
+                    text_output->WriteText(wxNow() << " Received user data!" << '\n');
+
+                    lenRd = sockBase->Read(rx_buf + 2, crypto_kx_PUBLICKEYBYTES + 16).LastCount();
+                    memcpy(Peer.name, rx_buf + 32, 16);
+                    text_output->WriteText(wxNow() << " New user: " << rx_buf + 32 << '\n');
+
+                    if (key_exchange(me, rx_buf + 2)) {
+                        text_output->WriteText(wxNow() << " Successful key exchange! " << '\n');
+                    }
+                    else {
+                        text_output->WriteText(wxNow() << " Failed to exchange keys! " << '\n');
+                    }
+
+                    unsigned char tx_buf[2 + crypto_kx_PUBLICKEYBYTES + 16];
+
+                    tx_buf[0] = ENCRYPTED_CHAT_USER_DATA;
+                    tx_buf[1] = crypto_kx_PUBLICKEYBYTES + 16;
+
+                    memcpy(tx_buf + 2, me.keypair.pubkey, crypto_kx_PUBLICKEYBYTES);
+                    memcpy(tx_buf + crypto_kx_PUBLICKEYBYTES, me.name, 16);
+
+                    sockBase->Write(tx_buf, sizeof(tx_buf));
+
+                    Peer.received_data = true;
+
+
+                }
+                break;
+            case ENCRYPTED_CHAT_MESSAGE:
+                TransportCipher rx_cipher;
+
+                lenRd = sockBase->Read(&rx_cipher, CIPHER_LEN).LastCount();
+
+                me.decrypt_message(rx_cipher);
+                
+                text_output->WriteText(wxNow() << ' ' << Peer.name << ": " << rx_cipher.data << '\n');
+                break;
+
+            }
         }
 
         sockBase->SetNotify(wxSOCKET_LOST_FLAG | wxSOCKET_INPUT_FLAG);
@@ -117,7 +195,7 @@ void AppFrame::OnSocketEvent(wxSocketEvent& event) {
     }
 }
 
-AppFrame::AppFrame(bool status, wxString hostname) : wxFrame(nullptr, wxID_ANY, L"Encrypted Chat") {
+AppFrame::AppFrame(wxString hostname) : wxFrame(nullptr, wxID_ANY, L"Encrypted Chat") {
 
     wxBoxSizer* vbox = new wxBoxSizer(wxVERTICAL);
     wxPanel* panel = new wxPanel(this, wxID_ANY);
@@ -133,16 +211,20 @@ AppFrame::AppFrame(bool status, wxString hostname) : wxFrame(nullptr, wxID_ANY, 
     panel->SetSizer(vbox);
 
     CreateStatusBar();
-    if (status)
+    /*if (status)
         SetStatusText("Successfully generated keypair!");
     else
-        SetStatusText("Failed to generate keypair!");
+        SetStatusText("Failed to generate keypair!");*/
+
+    SetStatusText("Successfully generated keypair!");
 
     wxIPV4address addr;
+    peer_sock = client_sock = NULL;
 
     addr.AnyAddress();
+    addr.Service(28015);
+
     if (hostname != "localhost") {
-        addr.Service(28015);
 
         addr.Hostname(hostname);
 
@@ -155,10 +237,9 @@ AppFrame::AppFrame(bool status, wxString hostname) : wxFrame(nullptr, wxID_ANY, 
         client_sock->Notify(true);
 
         client_sock->Connect(addr, false);
+
     }
     else {
-        addr.Service(28015);
-
         server_sock = new wxSocketServer(addr);
 
         server_sock->SetEventHandler(*this, ID_Server);
@@ -178,19 +259,19 @@ void AppFrame::OnExit(wxCommandEvent& event)
 bool EncryptedChatApp::OnInit()
 {
     sodium_init();
-    user1 = User();
-    user2 = User();
-    user1.name = "me";
-    user2.name = "you";
+    me = User();
+    strcpy(me.name, "debug");
 
     wxString addr;
-    if (wxApp::argc >= 1) {
+    /*if (wxApp::argc > 1) {
         addr = wxApp::argv[0];
     }
     else {
         addr = "localhost";
-    }
-    AppFrame* mainFrame = new AppFrame(key_exchange(user1, user2), addr);
+    }*/
+    addr = "172.20.128.13";
+    //addr = "localhost";
+    AppFrame* mainFrame = new AppFrame(addr);
 
     mainFrame->Show(true);
 

@@ -37,4 +37,4 @@ public:
     void decrypt_message(TransportCipher &cipher);
 };
 
-bool key_exchange(CryptographicUser client, CryptographicUser server);
+bool key_exchange(CryptographicUser client, unsigned char * peer_key);

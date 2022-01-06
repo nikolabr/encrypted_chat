@@ -32,9 +32,16 @@ void CryptographicUser::decrypt_message(TransportCipher &cipher) {
     }
 }
 
-bool key_exchange(CryptographicUser client, CryptographicUser server) {
+/*bool key_exchange(CryptographicUser client, CryptographicUser server) {
     if ((crypto_kx_client_session_keys(client.rx, client.tx, client.keypair.pubkey, client.keypair.seckey, server.keypair.pubkey) != 0) ||
         (crypto_kx_server_session_keys(server.rx, server.tx, server.keypair.pubkey, server.keypair.seckey, client.keypair.pubkey) != 0))
+        return false;
+    else
+        return true;
+}*/
+
+bool key_exchange(CryptographicUser client, unsigned char* peer_key) {
+    if (crypto_kx_client_session_keys(client.rx, client.tx, client.keypair.pubkey, client.keypair.seckey, peer_key) != 0)
         return false;
     else
         return true;
