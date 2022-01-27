@@ -3,6 +3,7 @@
 #include <string>
 #include <iostream>
 #include <iterator>
+#include <sstream>
 #include <algorithm>
 
 #define MESSAGE_LEN 200
@@ -37,4 +38,6 @@ public:
     void decrypt_message(TransportCipher &cipher);
 };
 
-bool key_exchange(CryptographicUser client, unsigned char * peer_key);
+std::string get_hex_key(unsigned char* array, unsigned int len);
+bool key_exchange_server(CryptographicUser& server, unsigned char * peer_key);
+bool key_exchange_client(CryptographicUser& client, unsigned char* peer_key);
