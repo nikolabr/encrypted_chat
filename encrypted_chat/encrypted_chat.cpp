@@ -68,6 +68,16 @@ enum {
     ENCRYPTED_CHAT_MESSAGE = 0xA1
 };
 
+void WriteMessageToSocket(wxSocketBase* socket, TransportCipher& cipher) {
+    unsigned char buf[2];
+
+    buf[0] = ENCRYPTED_CHAT_MESSAGE;
+    buf[1] = sizeof(TransportCipher);
+
+    socket->Write(buf, 2);
+    socket->Write(&cipher, sizeof(TransportCipher));
+}
+
 void AppFrame::OnSend(wxCommandEvent& event) {
     std::string input = text_input->GetValue().utf8_string();
     text_output->WriteText(wxNow() << ' ' << me.name << ": " << input << '\n');
@@ -76,24 +86,12 @@ void AppFrame::OnSend(wxCommandEvent& event) {
 
     if (peer_sock) {
         if (peer_sock->IsConnected()) {
-            unsigned char buf[2];
-
-            buf[0] = ENCRYPTED_CHAT_MESSAGE;
-            buf[1] = sizeof(TransportCipher);
-
-            peer_sock->Write(buf, 2);
-            peer_sock->Write(&cipher, sizeof(TransportCipher));
+            WriteMessageToSocket(peer_sock, cipher);
         }
     }
     else if (client_sock) {
         if (client_sock->IsConnected()) {
-            unsigned char buf[2];
-
-            buf[0] = ENCRYPTED_CHAT_MESSAGE;
-            buf[1] = sizeof(TransportCipher);
-
-            client_sock->Write(buf, 2);
-            client_sock->Write(&cipher, sizeof(TransportCipher));
+            WriteMessageToSocket(client_sock, cipher);
         }
     }
     text_input->Clear();
@@ -271,7 +269,7 @@ bool EncryptedChatApp::OnInit()
     else {
         addr = "localhost";
     }
-    // addr = "172.20.128.178";
+    //addr = "172.20.129.196";
     AppFrame* mainFrame = new AppFrame(addr);
 
     mainFrame->Show(true);
